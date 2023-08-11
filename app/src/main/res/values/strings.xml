@@ -4,6 +4,14 @@
     <string name="password_q">비밀번호가 기억나지 않으세요?</string>
     <string name="drawer_menu">메뉴</string>
     <string name="drawer_closed">drawer 닫힘</string>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
+
+    <!-- MyLocationDemo-->
+    <string name="my_location_demo_label">My Location Demo</string>
+    <string name="my_location_demo_details">Demonstrates how to use GMS Location.</string>
+
+    <!-- Permissions -->
+    <string name="permission_rationale_location">내 위치를 지도에 표시하기 위해 위치 권한이 필요합니다.\n기기 위치 사용을 허용해주세요</string>
+    <string name="location_permission_denied">앱을 다시 실행해서 위치 권한을 부여해주세요.\n또는 폰 설정 &gt; 앱 &gt; \'무더위 쉼터\'로 들어가서 권한을 부여할 수 있습니다.</string>
+    <string name="permission_required_toast">앱 실행을 위해 위치 권한이 필요합니다.</string>
+
 </resources>
