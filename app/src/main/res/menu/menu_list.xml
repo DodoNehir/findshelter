@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/item1_tree"
+        android:title="나무 그늘"
+        android:checkable="true"/>
+    <item
+        android:id="@+id/item2_park"
+        android:title="공원"
+        android:checkable="true"/>
+    <item
+        android:id="@+id/item3_building"
+        android:title="건물"
+        android:checkable="true"/>
+</menu>

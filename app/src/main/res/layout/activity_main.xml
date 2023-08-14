@@ -1,16 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<fragment
+<androidx.drawerlayout.widget.DrawerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:map="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    tools:context=".MainActivity"
-    android:name="com.google.android.gms.maps.SupportMapFragment"
-    android:id="@+id/map"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    map:uiZoomControls="true"
-    map:uiRotateGestures="true"
-    map:cameraTilt="30"
-    >
+    android:fitsSystemWindows="true">
 
-</fragment>
+    <!-- 맨 처음 표시될 지도 -->
+    <fragment xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:map="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        map:cameraTilt="30"
+        map:uiRotateGestures="true"
+        map:uiZoomControls="true"
+        tools:context=".MainActivity">
+
+    </fragment>
+
+    <!-- 왼쪽에서 열릴 DrawerLayout -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/main_navigation_view"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        app:headerLayout="@layout/nav_header"
+        app:menu="@menu/menu_list">
+
+    </com.google.android.material.navigation.NavigationView>
+
+</androidx.drawerlayout.widget.DrawerLayout>

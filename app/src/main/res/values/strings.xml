@@ -3,6 +3,7 @@
     <string name="notice1">회원님의 비밀번호를 확인해주세요</string>
     <string name="password_q">비밀번호가 기억나지 않으세요?</string>
     <string name="drawer_menu">메뉴</string>
+    <string name="drawer_opened">drawer 열림</string>
     <string name="drawer_closed">drawer 닫힘</string>
 
     <!-- MyLocationDemo-->

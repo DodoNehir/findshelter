@@ -6,10 +6,15 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.widget.Toast
 import android.os.Bundle
+import android.view.MenuItem
+import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.OnRequestPermissionsResultCallback
 import androidx.core.content.ContextCompat
+import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.setupWithNavController
 import com.example.findshelter.PermissionUtils.PermissionDeniedDialog.Companion.newInstance
 import com.example.findshelter.PermissionUtils.isPermissionGranted
 import com.example.findshelter.databinding.ActivityMainBinding
@@ -22,18 +27,19 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
-
-
+import com.google.android.material.navigation.NavigationView
 
 class MainActivity : AppCompatActivity(),
     OnMyLocationButtonClickListener,
     OnMyLocationClickListener,
     OnMapReadyCallback,
-    OnRequestPermissionsResultCallback {
+    OnRequestPermissionsResultCallback,
+    NavigationView.OnNavigationItemSelectedListener{
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var mMap: GoogleMap
     private var permissionDenied = false
+    lateinit var toggle: ActionBarDrawerToggle
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,10 +49,37 @@ class MainActivity : AppCompatActivity(),
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment =
-            supportFragmentManager.findFragmentById(binding.root.id) as SupportMapFragment
+            supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
+
+        initNavigationMenu()
     }
 
+    private fun initNavigationMenu() {
+        binding.mainNavigationView.setNavigationItemSelectedListener(this)
+
+        toggle = ActionBarDrawerToggle(this, binding.drawerLayout,
+            R.string.drawer_opened, R.string.drawer_closed)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        toggle.syncState()
+    }
+
+    //토글 버튼을 누르면 Drawer가 들어가거나 나간다
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if(toggle.onOptionsItemSelected(item)) {
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    override fun onNavigationItemSelected(item: MenuItem): Boolean {
+        when(item.itemId){
+            R.id.item1_tree -> Toast.makeText(this,"나무", Toast.LENGTH_SHORT).show()
+            R.id.item2_park -> Toast.makeText(this,"공원", Toast.LENGTH_SHORT).show()
+            R.id.item3_building -> Toast.makeText(this,"빌딩", Toast.LENGTH_SHORT).show()
+        }
+        return false
+    }
 
     /**
      * Manipulates the map once available.
