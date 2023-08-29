@@ -4,15 +4,16 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.location.Location
-import android.widget.Toast
 import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
+import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.OnRequestPermissionsResultCallback
 import androidx.core.content.ContextCompat
+import com.example.findshelter.BuildConfig.MAPS_API_KEY
 import com.example.findshelter.PermissionUtils.PermissionDeniedDialog.Companion.newInstance
 import com.example.findshelter.PermissionUtils.isPermissionGranted
 import com.example.findshelter.databinding.ActivityMainBinding
@@ -26,10 +27,17 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.navigation.NavigationView
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import org.w3c.dom.Document
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import org.w3c.dom.NodeList
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.concurrent.thread
 
@@ -43,7 +51,9 @@ class MainActivity : AppCompatActivity(),
     private lateinit var binding: ActivityMainBinding
     private lateinit var mMap: GoogleMap
     private var permissionDenied = false
-    lateinit var toggle: ActionBarDrawerToggle
+    private lateinit var toggle: ActionBarDrawerToggle
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var myKorAddress: String
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +65,9 @@ class MainActivity : AppCompatActivity(),
         val mapFragment =
             supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
+
+        // 위치 서비스 클라이언트 생성
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         initNavigationMenu()
 
@@ -72,6 +85,99 @@ class MainActivity : AppCompatActivity(),
         toggle.syncState()
     }
 
+    // http 통신으로 위도 경도를 주소 json으로 받아오는 지오코딩 api
+    private fun GeoRequest() {
+
+        //0. 통신을 볼 interceptor 생성
+        val interceptor = HttpLoggingInterceptor().apply {
+            this.level = HttpLoggingInterceptor.Level.BODY
+        }
+        val client = OkHttpClient.Builder().apply {
+            this.addInterceptor(interceptor)
+        }.build()
+
+        //1. retrofit 객체 생성
+        val retrofit: Retrofit = Retrofit.Builder()
+            .baseUrl("https://maps.googleapis.com/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        //2, service 객체 생성
+        val geoService: GeoService = retrofit.create(GeoService::class.java)
+
+        //3. 마지막 확인된 위치로
+        // Call 객체 생성
+        lateinit var geoCall: Call<GoogleAddressResponse>
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return
+        }
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location: Location? ->
+                // 마지막으로 알려진 위치 가져오기.
+                // null일 경우에는 기기에서 위치 사용 중지 중일 때 등등임
+                if (location != null) {
+                    Log.d("GEO 로그", "location 에 정보가 있습니다")
+                    var lalo = location.latitude.toString() + "," + location.longitude.toString()
+                    geoCall = geoService.getResults(lalo, MAPS_API_KEY, "ko")
+
+                    //4. 네트워크 통신
+                    geoCall.enqueue(object : Callback<GoogleAddressResponse> {
+                        override fun onResponse(
+                            call: Call<GoogleAddressResponse>,
+                            response: Response<GoogleAddressResponse>
+                        ) {
+                            val addressInfo = response.body()
+
+                            if (addressInfo != null) {
+                                Log.d("GEO 로그", "응답 내용 status: " + addressInfo.status)
+                            } else {
+                                Log.d("GEO 로그", "응답 내용 status 가 null입니다")
+                            }
+                            if (addressInfo != null) {
+                                // 국가와 세부주소를 뺀 주소만 저장
+                                myKorAddress = addressInfo.results[0].formatted_address
+                                myKorAddress = myKorAddress.substring(
+                                    myKorAddress.indexOf(" ") + 1,
+                                    myKorAddress.lastIndexOf(" ")
+                                )
+                                Log.d("GEO 로그", "주소 결과: " + myKorAddress)
+
+                            } else {
+                                Log.d("GEO 로그", "응답 내용 주소 내용: null 입니다")
+                            }
+
+                        }
+
+                        override fun onFailure(call: Call<GoogleAddressResponse>, t: Throwable) {
+                            //오류
+                            call.cancel()
+                            Log.d("GEO 로그", "Call 실패: " + call.request().toString())
+                        }
+
+                    })
+                } else {
+                    Log.d("GEO 로그", "location 이 null입니다")
+                }
+            }
+
+    }
+
+    // areaCd(지역 코드)를 이용해서 쉼터 위치 xml을 받아오는 api
     private fun startGetApi() {
         val serviceKey =
             "?serviceKey=ANkRyAgZUuuFouNIBZiN%2F9cLuafMaWihg4rYPimPNJsBpTlR3uAsXr%2BJb3KfOVwNLwngOK5O2SU%2BI1C7OW0ZZw%3D%3D"
@@ -230,6 +336,7 @@ class MainActivity : AppCompatActivity(),
             .show()
         // Return false so that we don't consume the event and the default behavior still occurs
         // (the camera animates to the user's current position).
+        GeoRequest()
         return false
     }
 
