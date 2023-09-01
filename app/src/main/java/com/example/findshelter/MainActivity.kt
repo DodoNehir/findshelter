@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import com.example.findshelter.BuildConfig.MAPS_API_KEY
 import com.example.findshelter.PermissionUtils.PermissionDeniedDialog.Companion.newInstance
 import com.example.findshelter.PermissionUtils.isPermissionGranted
+import com.example.findshelter.ShelterPointResponse.ShelterPointResponse
 import com.example.findshelter.databinding.ActivityMainBinding
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -27,8 +28,6 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.navigation.NavigationView
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import org.w3c.dom.Document
 import org.w3c.dom.Element
 import org.w3c.dom.Node
@@ -41,11 +40,9 @@ import retrofit2.converter.gson.GsonConverterFactory
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.concurrent.thread
 
-class MainActivity : AppCompatActivity(),
-    OnMyLocationButtonClickListener,
-    OnMyLocationClickListener,
-    OnMapReadyCallback,
-    OnRequestPermissionsResultCallback,
+
+class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
+    OnMyLocationClickListener, OnMapReadyCallback, OnRequestPermissionsResultCallback,
     NavigationView.OnNavigationItemSelectedListener {
 
     private lateinit var binding: ActivityMainBinding
@@ -54,6 +51,7 @@ class MainActivity : AppCompatActivity(),
     private lateinit var toggle: ActionBarDrawerToggle
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var myKorAddress: String
+    private lateinit var myAreaCode: String
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,24 +60,20 @@ class MainActivity : AppCompatActivity(),
         setContentView(binding.root)
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        val mapFragment =
-            supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
+        val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
         // 위치 서비스 클라이언트 생성
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         initNavigationMenu()
-
-        startGetApi()
     }
 
     private fun initNavigationMenu() {
         binding.mainNavigationView.setNavigationItemSelectedListener(this)
 
         toggle = ActionBarDrawerToggle(
-            this, binding.drawerLayout,
-            R.string.drawer_opened, R.string.drawer_closed
+            this, binding.drawerLayout, R.string.drawer_opened, R.string.drawer_closed
         )
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         toggle.syncState()
@@ -88,20 +82,11 @@ class MainActivity : AppCompatActivity(),
     // http 통신으로 위도 경도를 주소 json으로 받아오는 지오코딩 api
     private fun GeoRequest() {
 
-        //0. 통신을 볼 interceptor 생성
-        val interceptor = HttpLoggingInterceptor().apply {
-            this.level = HttpLoggingInterceptor.Level.BODY
-        }
-        val client = OkHttpClient.Builder().apply {
-            this.addInterceptor(interceptor)
-        }.build()
 
         //1. retrofit 객체 생성
-        val retrofit: Retrofit = Retrofit.Builder()
-            .baseUrl("https://maps.googleapis.com/")
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
+        val retrofit: Retrofit =
+            Retrofit.Builder().baseUrl("https://maps.googleapis.com/")
+                .addConverterFactory(GsonConverterFactory.create()).build()
 
         //2, service 객체 생성
         val geoService: GeoService = retrofit.create(GeoService::class.java)
@@ -110,11 +95,9 @@ class MainActivity : AppCompatActivity(),
         // Call 객체 생성
         lateinit var geoCall: Call<GoogleAddressResponse>
         if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                this, Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
+                this, Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             // TODO: Consider calling
@@ -126,77 +109,76 @@ class MainActivity : AppCompatActivity(),
             // for ActivityCompat#requestPermissions for more details.
             return
         }
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location: Location? ->
-                // 마지막으로 알려진 위치 가져오기.
-                // null일 경우에는 기기에서 위치 사용 중지 중일 때 등등임
-                if (location != null) {
-                    Log.d("GEO 로그", "location 에 정보가 있습니다")
-                    var lalo = location.latitude.toString() + "," + location.longitude.toString()
-                    geoCall = geoService.getResults(lalo, MAPS_API_KEY, "ko")
+        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+            // 마지막으로 알려진 위치 가져오기.
+            // null일 경우에는 기기에서 위치 사용 중지 중일 때 등등임
+            if (location != null) {
+                Log.d("GEO 로그", "location 에 정보가 있습니다")
+                var lalo = location.latitude.toString() + "," + location.longitude.toString()
+                geoCall = geoService.getResults(lalo, MAPS_API_KEY, "ko")
 
-                    //4. 네트워크 통신
-                    geoCall.enqueue(object : Callback<GoogleAddressResponse> {
-                        override fun onResponse(
-                            call: Call<GoogleAddressResponse>,
-                            response: Response<GoogleAddressResponse>
-                        ) {
-                            val addressInfo = response.body()
+                //4. 네트워크 통신
+                geoCall.enqueue(object : Callback<GoogleAddressResponse> {
+                    override fun onResponse(
+                        call: Call<GoogleAddressResponse>,
+                        response: Response<GoogleAddressResponse>
+                    ) {
+                        val addressInfo = response.body()
 
-                            if (addressInfo != null) {
-                                Log.d("GEO 로그", "응답 내용 status: " + addressInfo.status)
-                            } else {
-                                Log.d("GEO 로그", "응답 내용 status 가 null입니다")
-                            }
-                            if (addressInfo != null) {
-                                // 국가와 세부주소를 뺀 주소만 저장
-                                myKorAddress = addressInfo.results[0].formatted_address
-                                myKorAddress = myKorAddress.substring(
-                                    myKorAddress.indexOf(" ") + 1,
-                                    myKorAddress.lastIndexOf(" ")
-                                )
-                                Log.d("GEO 로그", "주소 결과: " + myKorAddress)
+                        if (addressInfo != null) {
+                            Log.d("GEO 로그", "응답 내용 status: " + addressInfo.status)
+                        } else {
+                            Log.d("GEO 로그", "응답 내용 status 가 null입니다")
+                        }
+                        if (addressInfo != null) {
+                            // 국가와 세부주소를 뺀 주소만 저장
+                            myKorAddress = addressInfo.results[0].formatted_address
+                            myKorAddress = myKorAddress.substring(
+                                myKorAddress.indexOf(" ") + 1, myKorAddress.lastIndexOf(" ")
+                            )
 
-                            } else {
-                                Log.d("GEO 로그", "응답 내용 주소 내용: null 입니다")
-                            }
+                            Log.d("GEO 로그", "지역코드 요청 시작")
+                            areaCodeRequest()
 
+                        } else {
+                            Log.d("GEO 로그", "응답 내용 주소 내용: null 입니다")
                         }
 
-                        override fun onFailure(call: Call<GoogleAddressResponse>, t: Throwable) {
-                            //오류
-                            call.cancel()
-                            Log.d("GEO 로그", "Call 실패: " + call.request().toString())
-                        }
+                    }
 
-                    })
-                } else {
-                    Log.d("GEO 로그", "location 이 null입니다")
-                }
+                    override fun onFailure(call: Call<GoogleAddressResponse>, t: Throwable) {
+                        //오류
+                        call.cancel()
+                        Log.d("GEO 로그", "Call 실패: " + call.request().toString())
+                    }
+
+                })
+            } else {
+                Log.d("GEO 로그", "location 이 null입니다")
             }
+        }
 
     }
 
-    // areaCd(지역 코드)를 이용해서 쉼터 위치 xml을 받아오는 api
-    private fun startGetApi() {
-        val serviceKey =
-            "?serviceKey=ANkRyAgZUuuFouNIBZiN%2F9cLuafMaWihg4rYPimPNJsBpTlR3uAsXr%2BJb3KfOVwNLwngOK5O2SU%2BI1C7OW0ZZw%3D%3D"
-        val pageNo = "&pageNo=1"
-        val numOfRows = "&numOfRows=5"
-        val type = "&type=XML"
-        val year = "&year=2022"
-        val areaCd = "&areaCd=1111064000"
-        val equptype = "&equptype=001"
-        /*001:노인시설 002:복지회관 003:마을회관 004:보건소 005:주민센터 006:면동사모소 007:종교시설
-        008:금융기관 009:정자 010:공원 011:정자,파고라 012:공원 013:교량하부 014:나무그늘 015:하천둔치 099:기타*/
+    // 한글주소로 지역코드를 조회하는 법정동코드 조회 api
 
-        // api 정보를 가지고있는 주소
-        var url = "http://apis.data.go.kr/1741000/HeatWaveShelter2/getHeatWaveShelterList2"
-        url = url + serviceKey + pageNo + numOfRows + type + year + areaCd + equptype
+
+    /**
+     * HttpURLConnection 이용해서 날려보자!!
+     */
+    private fun areaCodeRequest() {
+        var urlBuilder: StringBuilder =
+            StringBuilder("https://apis.data.go.kr/1741000/StanReginCd/getStanReginCdList") /* URL */
+        urlBuilder.append("?" + "serviceKey=" + BuildConfig.AREA_API_KEY) /*Service Key*/
+        urlBuilder.append("&" + "pageNo" + "=" + "1") /*페이지번호*/
+        urlBuilder.append("&" + "numOfRows" + "=" + "3") /*한 페이지 결과 수*/
+        urlBuilder.append("&" + "type" + "=" + "xml") /*호출문서(xml, json) default : xml*/
+        urlBuilder.append("&" + "locatadd_nm" + "=" + myKorAddress) /*지역주소명*/
+
+        val url = urlBuilder.toString()
+        Log.d("AREA 로그", "url: " + url)
 
         thread(start = true) {
-            Log.d("API로그", "스레드 시작")
-
             try {
                 //XML 문서 빌더 객체 생성
                 val xml: Document =
@@ -205,49 +187,104 @@ class MainActivity : AppCompatActivity(),
 
                 //row 태그를 가지는 노드를 찾는다. 계층적인 노드 구조를 반환한다.
                 val list: NodeList = xml.getElementsByTagName("row")
-                Log.d("API로그", "list row 갯수: " + list.length)
 
                 //row 태그의 정보를 가져온다
-                for (i in 0..list.length - 1) {
-                    val n: Node = list.item(i)
+                val n: Node = list.item(0)
+                if (n.nodeType == Node.ELEMENT_NODE) {
+                    val elem = n as Element
+                    myAreaCode = elem.getElementsByTagName("region_cd").item(0).textContent
+                    Log.d("AREA 로그", "myAreaCode: " + myAreaCode)
 
-                    if (n.nodeType == Node.ELEMENT_NODE) {
-                        val elem = n as Element
+                    // 쉼터 위치 찾아오기
+                    shelterPointRequest()
 
-                        Log.d("API로그", "${i + 1}번째 데이터")
-                        Log.d(
-                            "API로그",
-                            "${i}" + " 번째 item에서 " + elem.getElementsByTagName("lo")
-                                .item(0).textContent
-                        )
-
-                        var position = LatLng(
-                            elem.getElementsByTagName("la").item(0).textContent.toDouble(),
-                            elem.getElementsByTagName("lo").item(0).textContent.toDouble()
-                        )
-
-                        runOnUiThread {
-                            // for문 돌면서 위치 마커 추가
-                            mMap.addMarker(
-                                MarkerOptions()
-                                    .position(position)
-                                    .title(
-                                        elem.getElementsByTagName("restname").item(0).textContent
-                                    )
-                            )
-                            //TODO: 매번 카메라를 위치시키지 않을 방법?
-                            mMap.moveCamera(CameraUpdateFactory.newLatLng(position))
-                        }
-                    }
-                }
-                runOnUiThread {
-                    //for문 끝난 뒤 카메라 이동
-                    mMap.moveCamera(CameraUpdateFactory.zoomTo(17f))
+                } else {
+                    Log.d("AREA 로그", "myAreaCode에 넣을 노드정보가 없습니다")
                 }
             } catch (e: Exception) {
-                Log.d("API로그", "StartgetAPI thread e: " + e.toString())
+                Log.d("AREA 로그", "스레드실패: " + e.toString())
             }
         }
+
+    }
+
+
+    // areaCd(지역 코드)를 이용해서 쉼터 위치 xml을 받아오는 api
+    private fun shelterPointRequest() {
+        val shelterPointService: ShelterPointService = ShelterPointService.create()
+        val shelterCall: Call<ShelterPointResponse>
+
+        shelterCall = shelterPointService.getShelterPoint(
+            BuildConfig.AREA_API_KEY,
+            1,
+            5,
+            "JSON",
+            2022,
+            "1111064000",
+            "001"
+        )
+        // TODO: myAreaCode로 해야하지만 안 되서 4691034000 로 테스트하기.
+
+        /**
+         * <areaCd>4691034000</areaCd>
+         * <areaNm>전라남도 신안군 비금면</areaNm>
+         *
+         * 1111064000
+         * 서울 종로구 이화동
+         */
+        //TODO 문의 및 오류신고 했음.
+
+        Log.d("Shelter 로그", shelterCall.request().toString())
+
+        shelterCall.enqueue(object : Callback<ShelterPointResponse> {
+            override fun onResponse(
+                call: Call<ShelterPointResponse>,
+                response: Response<ShelterPointResponse>
+            ) {
+                val shelterInfo = response.body()
+                if (shelterInfo != null) {
+                    // 제대로 안 될 때는 기본위치. 서울 종로구 이화동 6.25참전 유공자 경로당
+                    var position = LatLng(37.57660100, 127.00554200)
+
+                    // for (i in 0..shelterInfo.HeatWaveShelter.get(0).head.get(0).totalCount) {
+                    // TODO 검색은 5개 하는데 검색결과로 36개가 나와서 이걸 어떻게 다 표시할 지...
+
+                    var totalCount = shelterInfo.HeatWaveShelter.get(0).head.get(0).totalCount
+                    if (shelterInfo.HeatWaveShelter.get(0).head.get(0).totalCount > 5) {totalCount = 5}
+
+                    for (i in 0..totalCount-1) {
+                        Log.d("Shelter 로그", shelterInfo.HeatWaveShelter.get(1).row.get(i).restname)
+
+                        position = LatLng(
+                            shelterInfo.HeatWaveShelter.get(1).row.get(i).la,
+                            shelterInfo.HeatWaveShelter.get(1).row.get(i).lo
+                        )
+                        // 마커 찍고
+                        runOnUiThread {
+                            mMap.addMarker(
+                                MarkerOptions().position(position)
+                                    .title(shelterInfo.HeatWaveShelter.get(1).row.get(i).restname)
+                            )
+                        }
+                    }
+
+                    // 마지막 위치로 카메라 이동
+                    runOnUiThread {
+                        mMap.moveCamera(CameraUpdateFactory.newLatLng(position))
+                        mMap.moveCamera(CameraUpdateFactory.zoomTo(17f))
+                    }
+                } else {
+                    Log.d("Shelter 로그", "실패: Call 했지만 Response가 null 입니다.")
+                }
+            }
+
+            override fun onFailure(call: Call<ShelterPointResponse>, t: Throwable) {
+                call.cancel()
+                Log.d("Shelter 로그", "Call 실패: " + t.message)
+            }
+
+        })
+
     }
 
     //토글 버튼을 누르면 Drawer가 들어가거나 나간다
@@ -293,11 +330,9 @@ class MainActivity : AppCompatActivity(),
 
         //1. 권한 있는지 확인
         if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                this, Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
+                this, Manifest.permission.ACCESS_COARSE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             mMap.isMyLocationEnabled = true
@@ -306,11 +341,9 @@ class MainActivity : AppCompatActivity(),
 
         // 2. 다이얼로그 띄워야한다면 띄우기
         if (ActivityCompat.shouldShowRequestPermissionRationale(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                this, Manifest.permission.ACCESS_FINE_LOCATION
             ) || ActivityCompat.shouldShowRequestPermissionRationale(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
+                this, Manifest.permission.ACCESS_COARSE_LOCATION
             )
         ) {
             PermissionUtils.RationaleDialog.newInstance(
@@ -321,19 +354,16 @@ class MainActivity : AppCompatActivity(),
 
         // 3. Otherwise, request permission
         ActivityCompat.requestPermissions(
-            this,
-            arrayOf(
+            this, arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION
-            ),
-            LOCATION_PERMISSION_REQUEST_CODE
+            ), LOCATION_PERMISSION_REQUEST_CODE
         )
         // [END maps_check_location_permission]
     }
 
     override fun onMyLocationButtonClick(): Boolean {
-        Toast.makeText(this, "내 위치 찾기", Toast.LENGTH_SHORT)
-            .show()
+        Toast.makeText(this, "내 위치 찾기", Toast.LENGTH_SHORT).show()
         // Return false so that we don't consume the event and the default behavior still occurs
         // (the camera animates to the user's current position).
         GeoRequest()
@@ -341,14 +371,11 @@ class MainActivity : AppCompatActivity(),
     }
 
     override fun onMyLocationClick(location: Location) {
-        Toast.makeText(this, "현재 위치:\n$location", Toast.LENGTH_LONG)
-            .show()
+        Toast.makeText(this, "현재 위치:\n$location", Toast.LENGTH_LONG).show()
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
+        requestCode: Int, permissions: Array<String>, grantResults: IntArray
     ) {
         if (requestCode != LOCATION_PERMISSION_REQUEST_CODE) {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults)
@@ -356,13 +383,9 @@ class MainActivity : AppCompatActivity(),
         }
 
         if (isPermissionGranted(
-                permissions,
-                grantResults,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                permissions, grantResults, Manifest.permission.ACCESS_FINE_LOCATION
             ) || isPermissionGranted(
-                permissions,
-                grantResults,
-                Manifest.permission.ACCESS_COARSE_LOCATION
+                permissions, grantResults, Manifest.permission.ACCESS_COARSE_LOCATION
             )
         ) {
             enableMyLocation()

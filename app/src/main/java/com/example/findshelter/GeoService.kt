@@ -4,7 +4,6 @@ import retrofit2.Call
 import retrofit2.http.*
 
 interface GeoService {
-    //TODO: MAPS_API_KEY local properties에 있는데 어떻게 넣을까..
     @GET("maps/api/geocode/json")
     fun getResults(
         @Query("latlng", encoded = true) lalo: String,
