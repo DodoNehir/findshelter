@@ -82,7 +82,6 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
     // http 통신으로 위도 경도를 주소 json으로 받아오는 지오코딩 api
     private fun GeoRequest() {
 
-
         //1. retrofit 객체 생성
         val retrofit: Retrofit =
             Retrofit.Builder().baseUrl("https://maps.googleapis.com/")
@@ -100,13 +99,6 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
                 this, Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
             return
         }
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
@@ -137,8 +129,17 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
                                 myKorAddress.indexOf(" ") + 1, myKorAddress.lastIndexOf(" ")
                             )
 
-                            Log.d("GEO 로그", "지역코드 요청 시작")
-                            areaCodeRequest()
+                            // 현재 위치 주소를 토스트 띄움.
+                            runOnUiThread {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "내 주소: " + myKorAddress,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+
+//                            Log.d("GEO 로그", "지역코드 요청 시작")
+//                            areaCodeRequest()
 
                         } else {
                             Log.d("GEO 로그", "응답 내용 주소 내용: null 입니다")
@@ -155,16 +156,16 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
                 })
             } else {
                 Log.d("GEO 로그", "location 이 null입니다")
+                Toast.makeText(this, "위치 사용을 켜주세요", Toast.LENGTH_SHORT).show()
             }
         }
 
     }
 
-    // 한글주소로 지역코드를 조회하는 법정동코드 조회 api
-
 
     /**
-     * HttpURLConnection 이용해서 날려보자!!
+     * 한글주소로 지역코드를 조회하는 법정동코드 조회 api
+     * HttpURLConnection 이용 (한글 주소를 url로 전달하기 위해)
      */
     private fun areaCodeRequest() {
         var urlBuilder: StringBuilder =
@@ -188,7 +189,7 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
                 //row 태그를 가지는 노드를 찾는다. 계층적인 노드 구조를 반환한다.
                 val list: NodeList = xml.getElementsByTagName("row")
 
-                //row 태그의 정보를 가져온다
+                //지역코드만 가져옴. 아직 실제 사용은 X
                 val n: Node = list.item(0)
                 if (n.nodeType == Node.ELEMENT_NODE) {
                     val elem = n as Element
@@ -196,7 +197,7 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
                     Log.d("AREA 로그", "myAreaCode: " + myAreaCode)
 
                     // 쉼터 위치 찾아오기
-                    shelterPointRequest()
+//                    shelterPointRequest()
 
                 } else {
                     Log.d("AREA 로그", "myAreaCode에 넣을 노드정보가 없습니다")
@@ -210,7 +211,7 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
 
 
     // areaCd(지역 코드)를 이용해서 쉼터 위치 xml을 받아오는 api
-    private fun shelterPointRequest() {
+    private fun shelterPointRequest(equptype: String) {
         val shelterPointService: ShelterPointService = ShelterPointService.create()
         val shelterCall: Call<ShelterPointResponse>
 
@@ -221,9 +222,8 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
             "JSON",
             2022,
             "1111064000",
-            "001"
+            equptype
         )
-        // TODO: myAreaCode로 해야하지만 안 되서 4691034000 로 테스트하기.
 
         /**
          * <areaCd>4691034000</areaCd>
@@ -232,7 +232,7 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
          * 1111064000
          * 서울 종로구 이화동
          */
-        //TODO 문의 및 오류신고 했음.
+        //TODO 문의 및 오류신고 했음. 지금은 이화동으로 고정됨.
 
         Log.d("Shelter 로그", shelterCall.request().toString())
 
@@ -243,44 +243,65 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
             ) {
                 val shelterInfo = response.body()
                 if (shelterInfo != null) {
-                    // 제대로 안 될 때는 기본위치. 서울 종로구 이화동 6.25참전 유공자 경로당
-                    var position = LatLng(37.57660100, 127.00554200)
+                    if (shelterInfo.HeatWaveShelter != null) {
+                        // 서울 종로구 이화동 6.25참전 유공자 경로당
+                        var position = LatLng(37.57660100, 127.00554200)
 
-                    // for (i in 0..shelterInfo.HeatWaveShelter.get(0).head.get(0).totalCount) {
-                    // TODO 검색은 5개 하는데 검색결과로 36개가 나와서 이걸 어떻게 다 표시할 지...
+                        // for (i in 0..shelterInfo.HeatWaveShelter.get(0).head.get(0).totalCount) {
+                        // 30개면 30개 다 표시하기..?
 
-                    var totalCount = shelterInfo.HeatWaveShelter.get(0).head.get(0).totalCount
-                    if (shelterInfo.HeatWaveShelter.get(0).head.get(0).totalCount > 5) {totalCount = 5}
-
-                    for (i in 0..totalCount-1) {
-                        Log.d("Shelter 로그", shelterInfo.HeatWaveShelter.get(1).row.get(i).restname)
-
-                        position = LatLng(
-                            shelterInfo.HeatWaveShelter.get(1).row.get(i).la,
-                            shelterInfo.HeatWaveShelter.get(1).row.get(i).lo
-                        )
-                        // 마커 찍고
-                        runOnUiThread {
-                            mMap.addMarker(
-                                MarkerOptions().position(position)
-                                    .title(shelterInfo.HeatWaveShelter.get(1).row.get(i).restname)
-                            )
+                        var totalCount = shelterInfo.HeatWaveShelter.get(0).head.get(0).totalCount
+                        if (shelterInfo.HeatWaveShelter.get(0).head.get(0).totalCount > 5) {
+                            totalCount = 5
                         }
-                    }
 
-                    // 마지막 위치로 카메라 이동
-                    runOnUiThread {
-                        mMap.moveCamera(CameraUpdateFactory.newLatLng(position))
-                        mMap.moveCamera(CameraUpdateFactory.zoomTo(17f))
+                        for (i in 0..totalCount - 1) {
+                            Log.d(
+                                "Shelter 로그",
+                                shelterInfo.HeatWaveShelter.get(1).row.get(i).restname
+                            )
+
+                            position = LatLng(
+                                shelterInfo.HeatWaveShelter.get(1).row.get(i).la,
+                                shelterInfo.HeatWaveShelter.get(1).row.get(i).lo
+                            )
+                            // 마커 찍고
+                            runOnUiThread {
+                                mMap.addMarker(
+                                    MarkerOptions().position(position)
+                                        .title(shelterInfo.HeatWaveShelter.get(1).row.get(i).restname)
+                                )
+                            }
+                        }
+
+                        // 마지막 위치로 카메라 이동
+                        runOnUiThread {
+                            mMap.moveCamera(CameraUpdateFactory.newLatLng(position))
+                            mMap.moveCamera(CameraUpdateFactory.zoomTo(17f))
+                        }
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "해당하는 쉼터가 없습니다. 다른 곳을 선택해주세요",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        Log.d("Shelter 로그", "실패: Call 했지만 shelterInfo.HeatWaveShelter가 null 입니다.")
                     }
-                } else {
-                    Log.d("Shelter 로그", "실패: Call 했지만 Response가 null 입니다.")
                 }
             }
 
             override fun onFailure(call: Call<ShelterPointResponse>, t: Throwable) {
                 call.cancel()
                 Log.d("Shelter 로그", "Call 실패: " + t.message)
+                runOnUiThread {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "해당하는 쉼터가 없습니다. 다른 곳을 선택해주세요",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
 
         })
@@ -295,12 +316,23 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
         return super.onOptionsItemSelected(item)
     }
 
-    //TODO 버튼 선택 시 해당 위치가 표시되도록 만들어야 함
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.item1_tree -> Toast.makeText(this, "나무", Toast.LENGTH_SHORT).show()
-            R.id.item2_park -> Toast.makeText(this, "공원", Toast.LENGTH_SHORT).show()
-            R.id.item3_building -> Toast.makeText(this, "빌딩", Toast.LENGTH_SHORT).show()
+            R.id.item1_senior -> {
+                shelterPointRequest("001")
+            }
+
+            R.id.item2_welfare -> {
+                shelterPointRequest("002")
+            }
+
+            R.id.item3_bank -> {
+                shelterPointRequest("008")
+            }
+
+            R.id.item4_park -> {
+                shelterPointRequest("010")
+            }
         }
         return false
     }
@@ -363,7 +395,6 @@ class MainActivity : AppCompatActivity(), OnMyLocationButtonClickListener,
     }
 
     override fun onMyLocationButtonClick(): Boolean {
-        Toast.makeText(this, "내 위치 찾기", Toast.LENGTH_SHORT).show()
         // Return false so that we don't consume the event and the default behavior still occurs
         // (the camera animates to the user's current position).
         GeoRequest()

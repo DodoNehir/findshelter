@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/item1_tree"
-        android:title="나무 그늘"
+        android:id="@+id/item1_senior"
+        android:title="노인시설"
         android:checkable="true"/>
     <item
-        android:id="@+id/item2_park"
+        android:id="@+id/item2_welfare"
+        android:title="복지회관"
+        android:checkable="true"/>
+    <item
+        android:id="@+id/item3_bank"
+        android:title="금융기관"
+        android:checkable="true"/>
+    <item
+        android:id="@+id/item4_park"
         android:title="공원"
-        android:checkable="true"/>
-    <item
-        android:id="@+id/item3_building"
-        android:title="건물"
         android:checkable="true"/>
 </menu>
