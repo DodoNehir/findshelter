@@ -26,6 +26,9 @@
 ## 4. 사용 방법
 - 앱에 들어가서 내 위치를 먼저 찾습니다. 그리고 왼쪽의 메뉴에서 원하는 위치를 찾습니다.
 
+![photo_2023-09-05_18-00-59](https://github.com/DodoNehir/findshelter/assets/46012435/4b83830b-1e65-4cb9-af63-dfe258b7e260)
+![photo_2023-09-05_18-04-06](https://github.com/DodoNehir/findshelter/assets/46012435/1b074dcd-fe72-4afd-b497-9f1b362c7846)
+
 </br>
 
 ## 5. 주요 문제 해결법
