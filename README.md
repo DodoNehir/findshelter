@@ -23,10 +23,19 @@
 </br>
 
 ## 4. 사용 방법
-- 앱에 들어가서 내 위치를 먼저 찾습니다. 그리고 왼쪽의 메뉴에서 원하는 위치를 찾습니다.
+- GeoRequest() 와 sherlterPointRequest()는 Retrofit을 사용합니다. interface와 응답받을 데이터 형식인 GoogleAddressResponse data class를 생성합니다. 그 후 Call 객체를 생성하고 GET통신의 결과를 addressInfo에 저장해 사용합니다.
+```
+interface GeoService {
+    @GET("maps/api/geocode/json")
+    fun getResults(    ): Call<GoogleAddressResponse>
 
-![photo_2023-09-05_18-00-59](https://github.com/DodoNehir/findshelter/assets/46012435/4b83830b-1e65-4cb9-af63-dfe258b7e260)
-![photo_2023-09-05_18-04-06](https://github.com/DodoNehir/findshelter/assets/46012435/1b074dcd-fe72-4afd-b497-9f1b362c7846)
+geoCall = geoService.getResults(     )
+geoCall.enqueue(object : Callback<GoogleAddressResponse> {
+                    override fun onResponse( ) {
+                        val addressInfo = response.body()
+                    }
+})
+```
 
 </br>
 
