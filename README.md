@@ -23,6 +23,10 @@
 </br>
 
 ## 4. 사용 방법
+![캡처](https://github.com/DodoNehir/findshelter/assets/46012435/6e9730b9-0956-4b35-b86f-1f372cefdc22)
+- 먼저 위,경도를 확인 후 그 정보로부터 주소를 찾습니다. 그 주소를 이용해서 지역코드를 찾고, 지역코드를 이용해서 쉼터위치를 찾는 순으로 진행됩니다.
+</br>
+
 - GeoRequest() 와 sherlterPointRequest()는 Retrofit을 사용합니다. interface와 응답받을 데이터 형식인 GoogleAddressResponse data class를 생성합니다. 그 후 Call 객체를 생성하고 GET통신의 결과를 addressInfo에 저장해 사용합니다.
 ```
 interface GeoService {
@@ -35,6 +39,18 @@ geoCall.enqueue(object : Callback<GoogleAddressResponse> {
                         val addressInfo = response.body()
                     }
 })
+```
+
+</br>
+
+- areaCodeRequest() 는 DOM 방식으로 파싱합니다. 그래서 XML 전체를 받은 후 region_cd 태그의 값을 가져와서 사용합니다.
+
+```
+val xml: Document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(url)
+
+val list: NodeList = xml.getElementsByTagName("region_cd")
+val n: Node = list.item(0)
+myAreaCode = n.textContent
 ```
 
 </br>
