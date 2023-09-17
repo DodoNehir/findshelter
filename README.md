@@ -18,6 +18,7 @@
 
 ## 3. 핵심 기능
 이 서비스는 무더위 쉼터로 지정된 곳을 지도 위에 표시합니다.
+</br>
 내 위치를 지도에서 찾으면 위도와 경도, 주소를 알게 됩니다. 그리고 사용자가 쉼터 종류 중 하나를 선택하면 그에 맞는 쉼터의 위치를 찾아서 지도에 표시합니다.
 
 </br>
@@ -32,6 +33,7 @@
 interface GeoService {
     @GET("maps/api/geocode/json")
     fun getResults(    ): Call<GoogleAddressResponse>
+}
 
 geoCall = geoService.getResults(     )
 geoCall.enqueue(object : Callback<GoogleAddressResponse> {
